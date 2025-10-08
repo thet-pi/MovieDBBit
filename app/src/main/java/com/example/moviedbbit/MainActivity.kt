@@ -97,6 +97,7 @@ fun MovieInfoApp() {
     ) { innerPadding ->
         MovieNavGraph(
             navController = navController,
+            modifier = Modifier.padding(innerPadding)
         )
     }
 }

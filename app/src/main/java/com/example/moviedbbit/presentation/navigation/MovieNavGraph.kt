@@ -1,6 +1,7 @@
 package com.example.moviedbbit.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -13,10 +14,14 @@ import com.example.moviedbbit.presentation.screens.home.HomeScreen
 import com.example.moviedbbit.presentation.screens.search.SearchScreen
 
 @Composable
-fun MovieNavGraph(navController: NavHostController) {
+fun MovieNavGraph(
+    navController: NavHostController,
+    modifier: Modifier = Modifier
+) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route
+        startDestination = Screen.Home.route,
+        modifier = modifier
     ) {
         composable(Screen.Home.route) {
             HomeScreen(
