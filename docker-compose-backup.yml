@@ -1,0 +1,131 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  android-builder:
+    build: .
+    container_name: android-ci-builder
+    volumes:
+      - ./app:/workspace
+      - gradle-cache:/home/builder/.gradle
+    environment:
+      - JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+    working_dir: /workspace
+
+volumes:
+  gradle-cache:
+
+---
+# .gitlab-ci.yml example
+image: your-registry/android-builder:latest
+
+variables:
+  ANDROID_COMPILE_SDK: "34"
+  ANDROID_BUILD_TOOLS: "34.0.0"
+
+stages:
+  - build
+  - test
+
+before_script:
+  - export GRADLE_USER_HOME=$(pwd)/.gradle
+  - chmod +x ./gradlew
+
+build:
+  stage: build
+  script:
+    - ./gradlew assembleDebug
+  artifacts:
+    paths:
+      - app/build/outputs/
+    expire_in: 1 week
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - .gradle/
+
+test:
+  stage: test
+  script:
+    - ./gradlew test
+  artifacts:
+    reports:
+      junit: app/build/test-results/test/**/TEST-*.xml
+
+---
+# GitHub Actions example (.github/workflows/android-build.yml)
+name: Android CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: your-registry/android-builder:latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      
+      - name: Build with Gradle
+        run: ./gradlew assembleDebug
+      
+      - name: Run tests
+        run: ./gradlew test
+      
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+---
+# Jenkins Jenkinsfile example
+pipeline {
+    agent {
+        docker {
+            image 'your-registry/android-builder:latest'
+            args '-v gradle-cache:/home/builder/.gradle'
+        }
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                sh 'chmod +x ./gradlew'
+                sh './gradlew assembleDebug'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                sh './gradlew test'
+            }
+        }
+        
+        stage('Archive') {
+            steps {
+                archiveArtifacts artifacts: 'app/build/outputs/apk/**/*.apk', fingerprint: true
+            }
+        }
+    }
+    
+    post {
+        always {
+            junit 'app/build/test-results/test/**/TEST-*.xml'
+        }
+    }
+}
