@@ -107,10 +107,10 @@ docker-compose exec android-builder ./gradlew clean assembleDebug
 docker-compose down
 ```
 
-**Note**: The Dockerfile uses a hybrid approach for architecture compatibility:
-- Auto-detects ARM64/x86_64 for command-line tools
-- Manually installs build-tools (bypasses sdkmanager issues)
-- Works natively on Apple Silicon and Intel Macs without emulation flags
+**Note**: The Dockerfile uses x86_64 (linux/amd64) architecture:
+- Ensures compatibility with Android SDK build-tools
+- Works on both Apple Silicon (via Rosetta/emulation) and Intel Macs
+- Most stable and reliable configuration for Android builds
 
 ## 📱 Screens
 
