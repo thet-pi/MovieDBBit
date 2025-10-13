@@ -3,8 +3,11 @@ version: '3.8'
 
 services:
   android-builder:
-    build: .
+    build:
+      context: .
+      platform: linux/arm64
     container_name: android-ci-builder
+    platform: linux/arm64
     volumes:
       - ./app:/workspace
       - gradle-cache:/home/builder/.gradle

@@ -1,14 +1,16 @@
 # Docker Build Instructions for Apple Silicon
 
-## Problem
-When building Android apps on Apple Silicon (M1/M2/M3) Macs using Docker, you may encounter compatibility issues with Android build tools.
+## ARM64 Native Build
+
+This Docker configuration is optimized exclusively for **Apple Silicon (M1/M2/M3/M4) Macs**.
 
 ## Solution
-The Dockerfile has been configured to automatically detect the architecture and download the appropriate Android SDK command-line tools:
-- **ARM64 version** for Apple Silicon Macs (native, much faster!)
-- **x86_64 version** for Intel Macs
+The Dockerfile is configured to use:
+- **linux/arm64 platform** - enforces ARM64 architecture
+- **ARM64 Android SDK tools** (version 11076708) - native ARM64 binaries
+- **No emulation** - runs natively on Apple Silicon for maximum performance
 
-This provides the best performance by avoiding emulation layers entirely.
+⚠️ **Note**: This will NOT work on Intel Macs. If you need Intel compatibility, remove the `--platform=linux/arm64` flags.
 
 ## Build and Run Commands
 
@@ -39,19 +41,23 @@ docker-compose exec android-builder ./gradlew clean assembleDebug
 
 ## Alternative: Build without docker-compose
 ```bash
-docker build -t android-builder .
-docker run -v $(pwd)/app:/workspace android-builder ./gradlew clean assembleDebug
+docker build --platform linux/arm64 -t android-builder .
+docker run --platform linux/arm64 -v $(pwd)/app:/workspace android-builder ./gradlew clean assembleDebug
 ```
 
 ## Notes
-- The Dockerfile automatically detects your architecture and downloads the correct SDK tools
-- On Apple Silicon, this uses native ARM64 - no emulation overhead!
-- On Intel Macs, this uses x86_64 natively
+- This configuration uses **ARM64 exclusively** - optimized for Apple Silicon
 - Gradle cache is persisted in a Docker volume for faster subsequent builds
-- Build performance should be significantly better than using x86_64 emulation
+- Will fail on Intel Macs (by design)
 
-## Advantages of ARM64 Native Build
-- **Much faster**: No Rosetta/QEMU translation layer
-- **Lower CPU usage**: Native ARM64 execution
-- **Better battery life**: More efficient on Apple Silicon
-- **Same compatibility**: Android SDK officially supports ARM64
+## Advantages of ARM64-Only Configuration
+- **Maximum performance**: Native ARM64 execution, no compatibility overhead
+- **Faster builds**: Typically 2-3x faster than x86_64 emulation
+- **Lower resource usage**: Better CPU efficiency and battery life
+- **Simpler configuration**: No architecture detection needed
+- **Official support**: Google provides full ARM64 Android SDK
+
+## For Intel Mac Users
+If you need to build on an Intel Mac, you'll need to:
+1. Change `--platform=linux/arm64` to `--platform=linux/amd64` in both files
+2. Change the SDK URL to: `commandlinetools-linux-9477386_latest.zip`
