@@ -1,3 +1,4 @@
+# Use native ARM64 for Apple Silicon - much faster!
 FROM ubuntu:22.04
 
 # Prevent interactive prompts during package installation
@@ -22,8 +23,16 @@ RUN apt-get update && apt-get install -y \
 # Create Android SDK directory
 RUN mkdir -p ${ANDROID_HOME}/cmdline-tools
 
-# Download and install Android command line tools
-RUN wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmdline-tools.zip && \
+# Detect architecture and download appropriate Android command line tools
+# ARM64 version is available and works natively on Apple Silicon
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
+        echo "Downloading ARM64 Android SDK tools..."; \
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip; \
+    else \
+        echo "Downloading x86_64 Android SDK tools..."; \
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmdline-tools.zip; \
+    fi && \
     unzip -q /tmp/cmdline-tools.zip -d /tmp && \
     mv /tmp/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
     rm /tmp/cmdline-tools.zip
