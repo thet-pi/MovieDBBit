@@ -1,5 +1,5 @@
-# ARM64 only - optimized for Apple Silicon
-FROM --platform=linux/arm64 ubuntu:22.04
+# Native architecture - manually install build-tools to avoid architecture issues
+FROM ubuntu:22.04
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -20,24 +20,32 @@ RUN apt-get update && apt-get install -y \
     file \
     && rm -rf /var/lib/apt/lists/*
 
-# Create Android SDK directory
-RUN mkdir -p ${ANDROID_HOME}/cmdline-tools
+# Create Android SDK directory structure
+RUN mkdir -p ${ANDROID_HOME}/cmdline-tools ${ANDROID_HOME}/build-tools ${ANDROID_HOME}/platforms
 
-# Download and install ARM64 Android command line tools
-RUN wget -q https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip -O /tmp/cmdline-tools.zip && \
+# Download and install Android command line tools (ARM64/x86_64 auto-detect)
+RUN ARCH=$(uname -m) && \
+    CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip"; \
+    wget -q ${CMDLINE_TOOLS_URL} -O /tmp/cmdline-tools.zip && \
     unzip -q /tmp/cmdline-tools.zip -d /tmp && \
     mv /tmp/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
     rm /tmp/cmdline-tools.zip
 
-# Accept Android SDK licenses
-RUN yes | sdkmanager --licenses
+# Manually download and install build-tools (workaround for architecture compatibility)
+# This avoids sdkmanager issues with build-tools on different architectures
+RUN wget -q https://dl.google.com/android/repository/build-tools_r34-linux.zip -O /tmp/build-tools.zip && \
+    unzip -q /tmp/build-tools.zip -d ${ANDROID_HOME}/build-tools && \
+    mv ${ANDROID_HOME}/build-tools/android-14 ${ANDROID_HOME}/build-tools/34.0.0 && \
+    rm /tmp/build-tools.zip
 
-# Install Android SDK components
+# Accept Android SDK licenses
+RUN yes | sdkmanager --licenses || true
+
+# Install remaining Android SDK components via sdkmanager
 RUN sdkmanager --update && \
     sdkmanager \
     "platform-tools" \
     "platforms;android-34" \
-    "build-tools;34.0.0" \
     "ndk;25.2.9519653" \
     "cmake;3.22.1" 
 

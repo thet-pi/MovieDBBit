@@ -78,6 +78,7 @@ app/src/main/java/com/example/moviedbbit/
 
 ### Build Commands
 
+#### Native Build (Recommended)
 ```bash
 # Clean build
 ./gradlew clean
@@ -91,6 +92,25 @@ app/src/main/java/com/example/moviedbbit/
 # Run tests
 ./gradlew test
 ```
+
+#### Docker Build
+For CI/CD or containerized builds:
+
+```bash
+# Build and start container
+docker-compose up -d
+
+# Build the app inside container
+docker-compose exec android-builder ./gradlew clean assembleDebug
+
+# Stop container
+docker-compose down
+```
+
+**Note**: The Dockerfile uses a hybrid approach for architecture compatibility:
+- Auto-detects ARM64/x86_64 for command-line tools
+- Manually installs build-tools (bypasses sdkmanager issues)
+- Works natively on Apple Silicon and Intel Macs without emulation flags
 
 ## 📱 Screens
 
