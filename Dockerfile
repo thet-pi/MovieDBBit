@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir -p ${ANDROID_HOME}/cmdline-tools
 
 # Download and install ARM64 Android command line tools
-RUN wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip && \
+RUN wget -q https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip -O /tmp/cmdline-tools.zip && \
     unzip -q /tmp/cmdline-tools.zip -d /tmp && \
     mv /tmp/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
     rm /tmp/cmdline-tools.zip
@@ -39,7 +39,7 @@ RUN sdkmanager --update && \
     "platforms;android-34" \
     "build-tools;34.0.0" \
     "ndk;25.2.9519653" \
-    "cmake;3.22.1"
+    "cmake;3.22.1" 
 
 # Set working directory
 WORKDIR /workspace
