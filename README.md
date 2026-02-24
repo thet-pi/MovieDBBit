@@ -5,6 +5,7 @@ Telephone
 Battle
 Jelly
 Power
+Ginger
 Frequent | Yellow
 
 ## 🎬 Features
