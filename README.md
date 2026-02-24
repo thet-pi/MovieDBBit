@@ -1,6 +1,6 @@
 # Movie Info Android App
 
-A native Android application built with Jetpack Compose that displays movie information using The Movie Database (TMDB) API.
+A native Android application built with Jetpack Compose that displays movie information using The Movie Database (TMDB) API.Yoyo
 Battle
 Jelly
 Power
