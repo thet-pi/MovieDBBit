@@ -3,6 +3,7 @@
 A native Android application built with Jetpack Compose that displays movie information using The Movie Database (TMDB) API.
 Battle
 Jelly
+Power
 Frequent | Yellow
 
 ## 🎬 Features
