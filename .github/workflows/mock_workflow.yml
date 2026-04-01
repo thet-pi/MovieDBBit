@@ -1,0 +1,62 @@
+name: Mock Workflow with Delays
+
+on:
+  workflow_dispatch:  # Manual trigger
+  pull_request:
+    types: [labeled]
+  issues:
+    types: [labeled]
+
+jobs:
+  mock-job:
+    name: Mock Job with Simulated Delays
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Initialize
+        run: |
+          echo "🚀 Starting mock workflow..."
+          echo "Timestamp: $(date)"
+          sleep 3
+          echo "✅ Initialization complete"
+      
+      - name: Simulate Processing - Step 1
+        run: |
+          echo "📦 Processing data batch 1..."
+          sleep 5
+          echo "✅ Batch 1 processed successfully"
+      
+      - name: Simulate Processing - Step 2
+        run: |
+          echo "📦 Processing data batch 2..."
+          sleep 4
+          echo "✅ Batch 2 processed successfully"
+      
+      - name: Simulate API Calls
+        run: |
+          echo "🌐 Making simulated API calls..."
+          for i in {1..3}; do
+            echo "  → API call $i..."
+            sleep 2
+            echo "  ✓ Response received"
+          done
+          echo "✅ All API calls completed"
+      
+      - name: Simulate Database Operations
+        run: |
+          echo "💾 Performing database operations..."
+          sleep 6
+          echo "✅ Database operations complete"
+      
+      - name: Simulate Final Validation
+        run: |
+          echo "🔍 Running final validation checks..."
+          sleep 3
+          echo "✅ All validations passed"
+      
+      - name: Complete
+        run: |
+          echo "🎉 Mock workflow completed successfully!"
+          echo "Total execution time: approximately 29 seconds"
+          echo "Timestamp: $(date)"
+          echo "Status: ✅ SUCCESS"
