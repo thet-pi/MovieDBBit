@@ -5,6 +5,7 @@ Battle
 Jelly
 Power
 Frequent | Yellow
+TEST
 
 ## 🎬 Features
 
