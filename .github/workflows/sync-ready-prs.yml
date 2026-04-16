@@ -1,0 +1,185 @@
+name: Sync Ready-to-Merge PRs
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: sync-ready-prs
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync PR with develop
+    if: |
+      github.event_name == 'push' ||
+      github.event.label.name == 'ready-to-merge'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get GitHub Token
+        id: get_workflow_token
+        uses: peter-murray/workflow-application-token-action@v3
+        with:
+          application_id: ${{ secrets.GH_APP_ID_HONDA }}
+          application_private_key: ${{ secrets.GH_APP_APP_HONDA }}
+
+      - name: Resolve PR to sync
+        id: resolve
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.get_workflow_token.outputs.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            let pr;
+
+            if (context.eventName === 'pull_request') {
+              // Label trigger — sync this specific PR directly
+              pr = context.payload.pull_request;
+              core.info(`Label trigger: syncing PR #${pr.number} (${pr.head.ref}) directly.`);
+            } else {
+              // Push to develop — find the oldest open labeled PR
+              const { data: prs } = await github.rest.pulls.list({
+                owner, repo,
+                base: 'develop',
+                state: 'open',
+                sort: 'created',
+                direction: 'asc',
+                per_page: 50,
+              });
+
+              const queued = prs.filter(p =>
+                p.labels.some(l => l.name === 'ready-to-merge')
+              );
+
+              if (queued.length === 0) {
+                core.info('No ready-to-merge PRs found. Nothing to sync.');
+                core.setOutput('skip', 'true');
+                return;
+              }
+
+              pr = queued[0];
+              core.info(`Push trigger: syncing oldest PR #${pr.number} (${pr.head.ref}).`);
+            }
+
+            // Confirm PR is still open
+            if (pr.state !== 'open') {
+              core.info(`PR #${pr.number} is no longer open. Skipping.`);
+              core.setOutput('skip', 'true');
+              return;
+            }
+
+            core.setOutput('skip', 'false');
+            core.setOutput('pr_number', pr.number);
+            core.setOutput('head_ref', pr.head.ref);
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('pr_node_id', pr.node_id);
+            core.setOutput('auto_merge_enabled', pr.auto_merge ? 'true' : 'false');
+
+      - name: Enable auto-merge
+        if: steps.resolve.outputs.skip == 'false' && steps.resolve.outputs.auto_merge_enabled == 'false'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.get_workflow_token.outputs.token }}
+          script: |
+            const prNodeId = '${{ steps.resolve.outputs.pr_node_id }}';
+            const prNumber = '${{ steps.resolve.outputs.pr_number }}';
+
+            await github.graphql(`
+              mutation($prId: ID!) {
+                enablePullRequestAutoMerge(input: {
+                  pullRequestId: $prId,
+                  mergeMethod: SQUASH
+                }) {
+                  pullRequest { autoMergeRequest { mergeMethod } }
+                }
+              }
+            `, { prId: prNodeId });
+
+            core.info(`Auto-merge (squash) enabled on PR #${prNumber}.`);
+
+      - name: Checkout PR branch
+        if: steps.resolve.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve.outputs.head_ref }}
+          fetch-depth: 0
+          token: ${{ steps.get_workflow_token.outputs.token }}
+
+      - name: Merge develop into PR branch
+        if: steps.resolve.outputs.skip == 'false'
+        id: merge
+        env:
+          PR_NUMBER: ${{ steps.resolve.outputs.pr_number }}
+          HEAD_REF: ${{ steps.resolve.outputs.head_ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin develop
+
+          MERGE_BASE=$(git merge-base HEAD origin/develop)
+          DEVELOP_HEAD=$(git rev-parse origin/develop)
+
+          if [ "$MERGE_BASE" = "$DEVELOP_HEAD" ]; then
+            echo "PR #${PR_NUMBER} is already up-to-date with develop."
+            echo "synced=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Merging develop into ${HEAD_REF}..."
+          if git merge origin/develop --no-edit; then
+            echo "Merge successful."
+            echo "synced=true" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Merge conflict detected in PR #${PR_NUMBER}."
+            git merge --abort
+            echo "synced=false" >> $GITHUB_OUTPUT
+            echo "conflict=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Push synced branch
+        if: steps.resolve.outputs.skip == 'false' && steps.merge.outputs.synced == 'true'
+        env:
+          HEAD_REF: ${{ steps.resolve.outputs.head_ref }}
+        run: git push origin HEAD:${HEAD_REF}
+
+      - name: Handle conflict — remove label and comment
+        if: failure() && steps.merge.outputs.conflict == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.get_workflow_token.outputs.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = parseInt('${{ steps.resolve.outputs.pr_number }}');
+            const headRef = '${{ steps.resolve.outputs.head_ref }}';
+            const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
+
+            // Remove the ready-to-merge label
+            try {
+              await github.rest.issues.removeLabel({
+                owner, repo,
+                issue_number: prNumber,
+                name: 'ready-to-merge',
+              });
+            } catch (e) {
+              core.info(`Could not remove label (may already be gone): ${e.message}`);
+            }
+
+            // Comment on the PR
+            await github.rest.issues.createComment({
+              owner, repo,
+              issue_number: prNumber,
+              body: [
+                `**Merge queue:** Sync failed for \`${headRef}\` — merge conflict with \`develop\`.`,
+                ``,
+                `The \`ready-to-merge\` label has been removed. Please resolve the conflict, then re-add the label to re-enter the queue.`,
+                ``,
+                `[View workflow run](${runUrl})`,
+              ].join('\n'),
+            });
