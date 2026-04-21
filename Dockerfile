@@ -1,4 +1,4 @@
-# Force x86_64 architecture for Android build-tools compatibilityy
+# Force x86_64 architecture for Android build-tools compatibilityi
 FROM --platform=linux/amd64 ubuntu:22.04
 
 # Prevent interactive prompts during package installation
