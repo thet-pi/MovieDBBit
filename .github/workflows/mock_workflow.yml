@@ -3,7 +3,7 @@ name: Mock Workflow with Delays
 on:
   workflow_dispatch:  # Manual trigger
   pull_request:
-    types: [labeled]
+    types: [labeled, synchronize]
   issues:
     types: [labeled]
 
